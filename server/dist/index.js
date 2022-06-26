@@ -18,7 +18,10 @@ const firebaseConfig = {
     measurementId: "G-6GDSXPS4EW"
 };
 async function main() {
-    const serviceAccount = require("../../../../api-keys/news-in-numbers.json");
+    if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+        return;
+    }
+    const serviceAccount = require(process.env.FIREBASE_SERVICE_ACCOUNT);
     (0, app_1.initializeApp)();
     const db = (0, firestore_1.getFirestore)();
     const dbUsers = await db.collection("users");

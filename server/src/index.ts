@@ -17,7 +17,10 @@ const firebaseConfig = {
 
 async function main() {
     // Firebase/-store
-    const serviceAccount = require("../../../../api-keys/news-in-numbers.json");
+    if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+        return;
+    }
+    const serviceAccount = require(process.env.FIREBASE_SERVICE_ACCOUNT);
     initializeApp();
     const db = getFirestore();
     const dbUsers = await db.collection("users");
