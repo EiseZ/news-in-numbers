@@ -20,11 +20,12 @@ async function main() {
     initializeApp();
     const db = getFirestore();
     const dbUsers = await db.collection("users");
+    const dbArticles = await db.collection("articles");
 
     // Express
     const expressApp = express();
 
-    createEndpoints(expressApp, dbUsers);
+    createEndpoints(expressApp, dbUsers, dbArticles);
 
     expressApp.listen("4000", () =>
         console.log(`Example app listening on port 4000!`)
@@ -32,7 +33,7 @@ async function main() {
 }
 
 // TODO: Remove any by dbUsers
-export function createEndpoints(app: express.Application, dbUsers: any) {
+export function createEndpoints(app: express.Application, dbUsers: any, dbArticles: any) {
     app.get("/", (_: Request, res: Response) => {
         return res.send("News In Numbers API online");
     });
@@ -71,16 +72,37 @@ export function createEndpoints(app: express.Application, dbUsers: any) {
         return res.send(200);
     });
 
-    app.get("/article/:id", (_: Request, res: Response) => {
-        return res.send("News In Numbers API online");
+    app.get("/article/:id", async (req: Request, res: Response) => {
+        const dbRes = await dbArticles.doc(req.params.id).get({}, () => {
+            return res.send(500);
+        });
+        if (!dbRes.exists) {
+            return res.send(404);
+        }
+        return res.send(dbRes.data());
     });
 
-    app.get("/createArticle/:tags/:title/:content/:imgSrc", (_: Request, res: Response) => {
-        return res.send("News In Numbers API online");
+    app.get("/createArticle/:tags/:title/:content/:imgSrc", async (req: Request, res: Response) => {
+        const article = {
+            tags: req.params.tags.replace(/_/g, " ").split(","),
+            title: req.params.title,
+            content: req.params.content,
+            imgSrc: req.params.imgSrc
+        };
+        const dbRes = await dbArticles.add(article, () => {
+            return res.send(500);
+        });
+        return res.send(dbRes.id)
     });
 
-    app.get("/deleteArticle/:id", (_: Request, res: Response) => {
-        return res.send("News In Numbers API online");
+    app.get("/deleteArticle/:id", async (req: Request, res: Response) => {
+        if (!req.params.id) {
+            return res.send(400);
+        }
+        const dbRes = await dbArticles.doc(req.params.id).delete({}, () => {
+            return res.send(500);
+        });
+        return res.send(200);
     });
 }
 

@@ -21,11 +21,12 @@ async function main() {
     (0, app_1.initializeApp)();
     const db = (0, firestore_1.getFirestore)();
     const dbUsers = await db.collection("users");
+    const dbArticles = await db.collection("articles");
     const expressApp = (0, express_1.default)();
-    createEndpoints(expressApp, dbUsers);
+    createEndpoints(expressApp, dbUsers, dbArticles);
     expressApp.listen("4000", () => console.log(`Example app listening on port 4000!`));
 }
-function createEndpoints(app, dbUsers) {
+function createEndpoints(app, dbUsers, dbArticles) {
     app.get("/", (_, res) => {
         return res.send("News In Numbers API online");
     });
@@ -60,14 +61,35 @@ function createEndpoints(app, dbUsers) {
         });
         return res.send(200);
     });
-    app.get("/article/:id", (_, res) => {
-        return res.send("News In Numbers API online");
+    app.get("/article/:id", async (req, res) => {
+        const dbRes = await dbArticles.doc(req.params.id).get({}, () => {
+            return res.send(500);
+        });
+        if (!dbRes.exists) {
+            return res.send(404);
+        }
+        return res.send(dbRes.data());
     });
-    app.get("/createArticle/:tags/:title/:content/:imgSrc", (_, res) => {
-        return res.send("News In Numbers API online");
+    app.get("/createArticle/:tags/:title/:content/:imgSrc", async (req, res) => {
+        const article = {
+            tags: req.params.tags.replace(/_/g, " ").split(","),
+            title: req.params.title,
+            content: req.params.content,
+            imgSrc: req.params.imgSrc
+        };
+        const dbRes = await dbArticles.add(article, () => {
+            return res.send(500);
+        });
+        return res.send(dbRes.id);
     });
-    app.get("/deleteArticle/:id", (_, res) => {
-        return res.send("News In Numbers API online");
+    app.get("/deleteArticle/:id", async (req, res) => {
+        if (!req.params.id) {
+            return res.send(400);
+        }
+        const dbRes = await dbArticles.doc(req.params.id).delete({}, () => {
+            return res.send(500);
+        });
+        return res.send(200);
     });
 }
 exports.createEndpoints = createEndpoints;
