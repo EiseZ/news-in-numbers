@@ -3,6 +3,7 @@ import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import { initializeApp, applicationDefault, cert } from "firebase-admin/app";
 import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
+import argon2 from "argon2";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD7MT1eZnCD35EOQEQkV_nQPteBreJBBug",
@@ -53,12 +54,37 @@ export function createEndpoints(app: express.Application, dbUsers: any, dbArticl
         return res.send(dbRes.data());
     });
 
-    app.get("/createUser/:name/:password", async (req: Request, res: Response) => {
+    app.get("/login/:email/:password", async (req: Request, res: Response) => {
+        const dbRes = await dbUsers.where("email", "==", req.params.email.toLowerCase()).get({}, () => {
+            return res.send(500);
+        });
+        if (dbRes.empty) {
+            return res.send(404);
+        }
+        const user = dbRes.docs[0];
+        const passCorrect = await argon2.verify(user.data().password, req.params.password);
+        if (passCorrect) {
+            return res.send(user.id);
+        }
+        return res.send(403);
+    });
+
+    app.get("/createUser/:email/:password", async (req: Request, res: Response) => {
+        // Check if user already exists
+        const dbResCheck = await dbUsers.where("email", "==", req.params.email.toLowerCase()).get({}, () => {
+            return res.send(500);
+        });
+        if (!dbResCheck.empty) {
+            return res.send(409);
+        }
+
+        const passHash = await argon2.hash(req.params.password);
         const user = {
-            name: req.params.name,
-            password: req.params.password
+            email: req.params.email.toLowerCase(),
+            password: passHash,
+            date: new Date()
         };
-        if (user.name.length < 5 || user.password.length < 5) {
+        if (user.email.length < 5 || user.password.length < 5) {
           return res.send(400);
         }
         const dbRes = await dbUsers.add(user, () => {

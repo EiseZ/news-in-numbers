@@ -8,6 +8,7 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const app_1 = require("firebase-admin/app");
 const firestore_1 = require("firebase-admin/firestore");
+const argon2_1 = __importDefault(require("argon2"));
 const firebaseConfig = {
     apiKey: "AIzaSyD7MT1eZnCD35EOQEQkV_nQPteBreJBBug",
     authDomain: "news-in-numbers-7fc19.firebaseapp.com",
@@ -44,12 +45,34 @@ function createEndpoints(app, dbUsers, dbArticles) {
         }
         return res.send(dbRes.data());
     });
-    app.get("/createUser/:name/:password", async (req, res) => {
+    app.get("/login/:email/:password", async (req, res) => {
+        const dbRes = await dbUsers.where("email", "==", req.params.email.toLowerCase()).get({}, () => {
+            return res.send(500);
+        });
+        if (dbRes.empty) {
+            return res.send(404);
+        }
+        const user = dbRes.docs[0];
+        const passCorrect = await argon2_1.default.verify(user.data().password, req.params.password);
+        if (passCorrect) {
+            return res.send(user.id);
+        }
+        return res.send(403);
+    });
+    app.get("/createUser/:email/:password", async (req, res) => {
+        const dbResCheck = await dbUsers.where("email", "==", req.params.email.toLowerCase()).get({}, () => {
+            return res.send(500);
+        });
+        if (!dbResCheck.empty) {
+            return res.send(409);
+        }
+        const passHash = await argon2_1.default.hash(req.params.password);
         const user = {
-            name: req.params.name,
-            password: req.params.password
+            email: req.params.email.toLowerCase(),
+            password: passHash,
+            date: new Date()
         };
-        if (user.name.length < 5 || user.password.length < 5) {
+        if (user.email.length < 5 || user.password.length < 5) {
             return res.send(400);
         }
         const dbRes = await dbUsers.add(user, () => {
