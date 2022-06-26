@@ -12,7 +12,7 @@
     <img src={imgSrc} class="" alt=""/>
     <div class="flex">
         {#each tags as tag}
-            <p class="m-2 ml-0 rounded-full p-1 px-2 bg-black text-white">{tag}</p>
+            <p class="mr-2 mt-5 ml-0 rounded-full p-1 px-2 bg-black text-white">{tag}</p>
         {/each}
     </div>
     <h1 class="text-4xl mt-5 font-bold">{title}</h1>
