@@ -37,8 +37,14 @@ export function createEndpoints(app: express.Application, dbUsers: any) {
         return res.send("News In Numbers API online");
     });
 
-    app.get("/user/:id", (_: Request, res: Response) => {
-        return res.send("News In Numbers API online");
+    app.get("/user/:id", async (req: Request, res: Response) => {
+        const dbRes = await dbUsers.doc(req.params.id).get({}, () => {
+            return res.send(500);
+        });
+        if (!dbRes.exists) {
+            return res.send(404);
+        }
+        return res.send(dbRes.data());
     });
 
     app.get("/createUser/:name/:password", async (req: Request, res: Response) => {
