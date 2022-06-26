@@ -1,5 +1,6 @@
 import { getAnalytics } from "firebase/analytics";
 import express, { Application, Request, Response } from "express";
+import cors from "cors";
 import { initializeApp, applicationDefault, cert } from "firebase-admin/app";
 import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
 
@@ -24,6 +25,7 @@ async function main() {
 
     // Express
     const expressApp = express();
+    expressApp.use(cors());
 
     createEndpoints(expressApp, dbUsers, dbArticles);
 
@@ -70,6 +72,21 @@ export function createEndpoints(app: express.Application, dbUsers: any, dbArticl
             return res.send(500);
         });
         return res.send(200);
+    });
+
+    app.get("/articles/:n", async (req: Request, res: Response) => {
+        const dbRes = await dbArticles.limit(parseInt(req.params.n)).get({}, () => {
+            return res.send(500);
+        });
+        if (dbRes.empty) {
+            return res.send(404);
+        }
+        let articles: {}[] = [];
+        // TODO: Remove any
+        dbRes.forEach((article: any) => {
+            articles.push(article.data());
+        });
+        return res.send(articles);
     });
 
     app.get("/article/:id", async (req: Request, res: Response) => {

@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createEndpoints = void 0;
 const express_1 = __importDefault(require("express"));
+const cors_1 = __importDefault(require("cors"));
 const app_1 = require("firebase-admin/app");
 const firestore_1 = require("firebase-admin/firestore");
 const firebaseConfig = {
@@ -23,6 +24,7 @@ async function main() {
     const dbUsers = await db.collection("users");
     const dbArticles = await db.collection("articles");
     const expressApp = (0, express_1.default)();
+    expressApp.use((0, cors_1.default)());
     createEndpoints(expressApp, dbUsers, dbArticles);
     expressApp.listen("4000", () => console.log(`Example app listening on port 4000!`));
 }
@@ -60,6 +62,19 @@ function createEndpoints(app, dbUsers, dbArticles) {
             return res.send(500);
         });
         return res.send(200);
+    });
+    app.get("/articles/:n", async (req, res) => {
+        const dbRes = await dbArticles.limit(parseInt(req.params.n)).get({}, () => {
+            return res.send(500);
+        });
+        if (dbRes.empty) {
+            return res.send(404);
+        }
+        let articles = [];
+        dbRes.forEach((article) => {
+            articles.push(article.data());
+        });
+        return res.send(articles);
     });
     app.get("/article/:id", async (req, res) => {
         const dbRes = await dbArticles.doc(req.params.id).get({}, () => {
