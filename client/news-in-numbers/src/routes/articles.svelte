@@ -2,7 +2,7 @@
     import { onMount } from "svelte";
     let articles = [];
     onMount(async () => {
-        fetch("http://localhost:4000/articles/3")
+        fetch("http://localhost:4000/articles/3", { credentials: "include" })
         .then(response => response.json())
         .then(data => {
             console.log(data);

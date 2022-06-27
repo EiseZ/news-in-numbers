@@ -1,7 +1,7 @@
 import { getAnalytics } from "firebase/analytics";
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
-import cookieParser from "cookie-parser";
+import expressSession from "express-session";
 import aesjs from "aes-js";
 import { initializeApp, applicationDefault, cert } from "firebase-admin/app";
 import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
@@ -19,6 +19,11 @@ const firebaseConfig = {
 
 const aesKey = [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 ];
 
+declare module 'express-session' {
+  export interface SessionData {
+    userId: String;
+  }
+}
 
 async function main() {
     // Firebase/-store
@@ -37,7 +42,15 @@ async function main() {
             origin: "http://localhost:3000",
             credentials: true,
     }));
-    expressApp.use(cookieParser());
+    expressApp.use(expressSession({
+        secret: "secret",
+        resave: false,
+        saveUninitialized: true,
+        cookie: {
+            secure: false,
+            sameSite: "strict",
+        }
+    }));
 
     createEndpoints(expressApp, dbUsers, dbArticles);
 
@@ -72,19 +85,11 @@ export function createEndpoints(app: express.Application, dbUsers: any, dbArticl
         const user = dbRes.docs[0];
         const passCorrect = await argon2.verify(user.data().password, req.params.password);
 
-        // Encrypt user id
-        const userIdBytes = aesjs.utils.utf8.toBytes(user.id);
-        const aesCtr = new aesjs.ModeOfOperation.ctr(aesKey, new aesjs.Counter(5));
-        const encryptedId = aesCtr.encrypt(userIdBytes);
-        const encryptedIdHex = aesjs.utils.hex.fromBytes(encryptedId);
-
-        if (passCorrect) {
-            return res.writeHead(200, {
-                "Set-Cookie": `userId=${encryptedIdHex}; SameSite=Lax; HttpOnly`,
-                "Access-Control-Allow-Credentials": "true"
-            }).send();
+        if (!passCorrect) {
+            return res.send(403);
         }
-        return res.send(403);
+        req.session.userId = user.id;
+        return res.send(200);
     });
 
     app.get("/createUser/:email/:password", async (req: Request, res: Response) => {
@@ -109,16 +114,9 @@ export function createEndpoints(app: express.Application, dbUsers: any, dbArticl
         const dbRes = await dbUsers.add(user, () => {
             return res.send(500);
         });
-        
-        // Encrypt user id
-        const userIdBytes = aesjs.utils.utf8.toBytes(dbRes.id);
-        const aesCtr = new aesjs.ModeOfOperation.ctr(aesKey, new aesjs.Counter(5));
-        const encryptedId = aesCtr.encrypt(userIdBytes);
-        const encryptedIdHex = aesjs.utils.hex.fromBytes(encryptedId);
-        return res.writeHead(200, {
-            "Set-Cookie": `userId=${encryptedIdHex}; SameSite=Lax; HttpOnly`,
-            "Access-Control-Allow-Credentials": "true"
-        }).send();
+
+        req.session.userId = dbRes.id;
+        return res.send(200);
     });
 
     app.get("/deleteUser/:id", async (req: Request, res: Response) => {
@@ -133,20 +131,16 @@ export function createEndpoints(app: express.Application, dbUsers: any, dbArticl
 
     app.get("/articles/:n", async (req: Request, res: Response) => {
         // Check if user payed
-        if (!req.cookies.userId) {
+        if (!req.session.userId) {
             return res.send(401);
         }
-        const UserIdBytes = aesjs.utils.hex.toBytes(req.cookies.userId);
-        const aesCtr = new aesjs.ModeOfOperation.ctr(aesKey, new aesjs.Counter(5));
-        const decryptedUserIdBytes = aesCtr.decrypt(UserIdBytes);
-        const decryptedUserId = aesjs.utils.utf8.fromBytes(decryptedUserIdBytes);
-        const dbResUser = await dbUsers.doc(req.params.id).get({}, () => {
+        const dbResUser = await dbUsers.doc(req.session.userId).get({}, () => {
             return res.send(500);
         });
         if (!dbResUser.exists) {
             return res.send(403);
         }
-        if (!dbResUser.payed) {
+        if (!dbResUser.data().payed) {
             return res.send(402);
         }
 
@@ -167,21 +161,16 @@ export function createEndpoints(app: express.Application, dbUsers: any, dbArticl
 
     app.get("/article/:id", async (req: Request, res: Response) => {
         // Check if user payed
-        console.log(req.cookies);
-        if (!req.cookies.userId) {
+        if (!req.session.userId) {
             return res.send(401);
         }
-        const UserIdBytes = aesjs.utils.hex.toBytes(req.cookies.userId);
-        const aesCtr = new aesjs.ModeOfOperation.ctr(aesKey, new aesjs.Counter(5));
-        const decryptedUserIdBytes = aesCtr.decrypt(UserIdBytes);
-        const decryptedUserId = aesjs.utils.utf8.fromBytes(decryptedUserIdBytes);
-        const dbResUser = await dbUsers.doc(req.params.id).get({}, () => {
+        const dbResUser = await dbUsers.doc(req.session.userId).get({}, () => {
             return res.send(500);
         });
         if (!dbResUser.exists) {
             return res.send(403);
         }
-        if (!dbResUser.payed) {
+        if (!dbResUser.data().payed) {
             return res.send(402);
         }
 
