@@ -32,7 +32,8 @@ async function main() {
     const dbArticles = await db.collection("articles");
     const expressApp = (0, express_1.default)();
     expressApp.use((0, cors_1.default)({
-        origin: "http://localhost:3000"
+        origin: "http://localhost:3000",
+        credentials: true,
     }));
     expressApp.use((0, cookie_parser_1.default)());
     createEndpoints(expressApp, dbUsers, dbArticles);
@@ -61,12 +62,12 @@ function createEndpoints(app, dbUsers, dbArticles) {
         const user = dbRes.docs[0];
         const passCorrect = await argon2_1.default.verify(user.data().password, req.params.password);
         const userIdBytes = aes_js_1.default.utils.utf8.toBytes(user.id);
-        let aesCtr = new aes_js_1.default.ModeOfOperation.ctr(aesKey, new aes_js_1.default.Counter(5));
+        const aesCtr = new aes_js_1.default.ModeOfOperation.ctr(aesKey, new aes_js_1.default.Counter(5));
         const encryptedId = aesCtr.encrypt(userIdBytes);
         const encryptedIdHex = aes_js_1.default.utils.hex.fromBytes(encryptedId);
         if (passCorrect) {
             return res.writeHead(200, {
-                "Set-Cookie": `userId=${encryptedIdHex}; HttpOnly`,
+                "Set-Cookie": `userId=${encryptedIdHex}; SameSite=Lax; HttpOnly`,
                 "Access-Control-Allow-Credentials": "true"
             }).send();
         }
@@ -83,7 +84,8 @@ function createEndpoints(app, dbUsers, dbArticles) {
         const user = {
             email: req.params.email.toLowerCase(),
             password: passHash,
-            date: new Date()
+            date: new Date(),
+            payed: false,
         };
         if (user.email.length < 5 || user.password.length < 5) {
             return res.send(400);
@@ -92,11 +94,11 @@ function createEndpoints(app, dbUsers, dbArticles) {
             return res.send(500);
         });
         const userIdBytes = aes_js_1.default.utils.utf8.toBytes(dbRes.id);
-        let aesCtr = new aes_js_1.default.ModeOfOperation.ctr(aesKey, new aes_js_1.default.Counter(5));
+        const aesCtr = new aes_js_1.default.ModeOfOperation.ctr(aesKey, new aes_js_1.default.Counter(5));
         const encryptedId = aesCtr.encrypt(userIdBytes);
         const encryptedIdHex = aes_js_1.default.utils.hex.fromBytes(encryptedId);
         return res.writeHead(200, {
-            "Set-Cookie": `userId=${encryptedIdHex}; HttpOnly`,
+            "Set-Cookie": `userId=${encryptedIdHex}; SameSite=Lax; HttpOnly`,
             "Access-Control-Allow-Credentials": "true"
         }).send();
     });
@@ -110,6 +112,22 @@ function createEndpoints(app, dbUsers, dbArticles) {
         return res.send(200);
     });
     app.get("/articles/:n", async (req, res) => {
+        if (!req.cookies.userId) {
+            return res.send(401);
+        }
+        const UserIdBytes = aes_js_1.default.utils.hex.toBytes(req.cookies.userId);
+        const aesCtr = new aes_js_1.default.ModeOfOperation.ctr(aesKey, new aes_js_1.default.Counter(5));
+        const decryptedUserIdBytes = aesCtr.decrypt(UserIdBytes);
+        const decryptedUserId = aes_js_1.default.utils.utf8.fromBytes(decryptedUserIdBytes);
+        const dbResUser = await dbUsers.doc(req.params.id).get({}, () => {
+            return res.send(500);
+        });
+        if (!dbResUser.exists) {
+            return res.send(403);
+        }
+        if (!dbResUser.payed) {
+            return res.send(402);
+        }
         const dbRes = await dbArticles.limit(parseInt(req.params.n)).get({}, () => {
             return res.send(500);
         });
@@ -123,6 +141,23 @@ function createEndpoints(app, dbUsers, dbArticles) {
         return res.send(articles);
     });
     app.get("/article/:id", async (req, res) => {
+        console.log(req.cookies);
+        if (!req.cookies.userId) {
+            return res.send(401);
+        }
+        const UserIdBytes = aes_js_1.default.utils.hex.toBytes(req.cookies.userId);
+        const aesCtr = new aes_js_1.default.ModeOfOperation.ctr(aesKey, new aes_js_1.default.Counter(5));
+        const decryptedUserIdBytes = aesCtr.decrypt(UserIdBytes);
+        const decryptedUserId = aes_js_1.default.utils.utf8.fromBytes(decryptedUserIdBytes);
+        const dbResUser = await dbUsers.doc(req.params.id).get({}, () => {
+            return res.send(500);
+        });
+        if (!dbResUser.exists) {
+            return res.send(403);
+        }
+        if (!dbResUser.payed) {
+            return res.send(402);
+        }
         const dbRes = await dbArticles.doc(req.params.id).get({}, () => {
             return res.send(500);
         });

@@ -34,7 +34,8 @@ async function main() {
     // Express
     const expressApp = express();
     expressApp.use(cors({
-            origin: "http://localhost:3000"
+            origin: "http://localhost:3000",
+            credentials: true,
     }));
     expressApp.use(cookieParser());
 
@@ -73,13 +74,13 @@ export function createEndpoints(app: express.Application, dbUsers: any, dbArticl
 
         // Encrypt user id
         const userIdBytes = aesjs.utils.utf8.toBytes(user.id);
-        let aesCtr = new aesjs.ModeOfOperation.ctr(aesKey, new aesjs.Counter(5));
+        const aesCtr = new aesjs.ModeOfOperation.ctr(aesKey, new aesjs.Counter(5));
         const encryptedId = aesCtr.encrypt(userIdBytes);
         const encryptedIdHex = aesjs.utils.hex.fromBytes(encryptedId);
 
         if (passCorrect) {
             return res.writeHead(200, {
-                "Set-Cookie": `userId=${encryptedIdHex}; HttpOnly`,
+                "Set-Cookie": `userId=${encryptedIdHex}; SameSite=Lax; HttpOnly`,
                 "Access-Control-Allow-Credentials": "true"
             }).send();
         }
@@ -99,7 +100,8 @@ export function createEndpoints(app: express.Application, dbUsers: any, dbArticl
         const user = {
             email: req.params.email.toLowerCase(),
             password: passHash,
-            date: new Date()
+            date: new Date(),
+            payed: false,
         };
         if (user.email.length < 5 || user.password.length < 5) {
           return res.send(400);
@@ -110,11 +112,11 @@ export function createEndpoints(app: express.Application, dbUsers: any, dbArticl
         
         // Encrypt user id
         const userIdBytes = aesjs.utils.utf8.toBytes(dbRes.id);
-        let aesCtr = new aesjs.ModeOfOperation.ctr(aesKey, new aesjs.Counter(5));
+        const aesCtr = new aesjs.ModeOfOperation.ctr(aesKey, new aesjs.Counter(5));
         const encryptedId = aesCtr.encrypt(userIdBytes);
         const encryptedIdHex = aesjs.utils.hex.fromBytes(encryptedId);
         return res.writeHead(200, {
-            "Set-Cookie": `userId=${encryptedIdHex}; HttpOnly`,
+            "Set-Cookie": `userId=${encryptedIdHex}; SameSite=Lax; HttpOnly`,
             "Access-Control-Allow-Credentials": "true"
         }).send();
     });
@@ -130,6 +132,25 @@ export function createEndpoints(app: express.Application, dbUsers: any, dbArticl
     });
 
     app.get("/articles/:n", async (req: Request, res: Response) => {
+        // Check if user payed
+        if (!req.cookies.userId) {
+            return res.send(401);
+        }
+        const UserIdBytes = aesjs.utils.hex.toBytes(req.cookies.userId);
+        const aesCtr = new aesjs.ModeOfOperation.ctr(aesKey, new aesjs.Counter(5));
+        const decryptedUserIdBytes = aesCtr.decrypt(UserIdBytes);
+        const decryptedUserId = aesjs.utils.utf8.fromBytes(decryptedUserIdBytes);
+        const dbResUser = await dbUsers.doc(req.params.id).get({}, () => {
+            return res.send(500);
+        });
+        if (!dbResUser.exists) {
+            return res.send(403);
+        }
+        if (!dbResUser.payed) {
+            return res.send(402);
+        }
+
+        // Get articles
         const dbRes = await dbArticles.limit(parseInt(req.params.n)).get({}, () => {
             return res.send(500);
         });
@@ -145,6 +166,26 @@ export function createEndpoints(app: express.Application, dbUsers: any, dbArticl
     });
 
     app.get("/article/:id", async (req: Request, res: Response) => {
+        // Check if user payed
+        console.log(req.cookies);
+        if (!req.cookies.userId) {
+            return res.send(401);
+        }
+        const UserIdBytes = aesjs.utils.hex.toBytes(req.cookies.userId);
+        const aesCtr = new aesjs.ModeOfOperation.ctr(aesKey, new aesjs.Counter(5));
+        const decryptedUserIdBytes = aesCtr.decrypt(UserIdBytes);
+        const decryptedUserId = aesjs.utils.utf8.fromBytes(decryptedUserIdBytes);
+        const dbResUser = await dbUsers.doc(req.params.id).get({}, () => {
+            return res.send(500);
+        });
+        if (!dbResUser.exists) {
+            return res.send(403);
+        }
+        if (!dbResUser.payed) {
+            return res.send(402);
+        }
+
+        // Get article
         const dbRes = await dbArticles.doc(req.params.id).get({}, () => {
             return res.send(500);
         });

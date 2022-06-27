@@ -14,7 +14,7 @@
     let articleFound = false;
     export let articleId;
     onMount(async () => {
-        fetch(`http://localhost:4000/article/${articleId}`)
+        fetch(`http://localhost:4000/article/${articleId}`, { credentials: "include" })
         .then(response => response.json())
         .then(data => {
             if (data) {
