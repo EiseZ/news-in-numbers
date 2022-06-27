@@ -11,7 +11,7 @@
 
     function login() {
         console.log(`http://localhost:4000/login/${email}/${password}`);
-        fetch(`http://localhost:4000/login/${email}/${password}`)
+        fetch(`http://localhost:4000/login/${email}/${password}`, { credentials: "include" })
             .then(data => {
                 if (!data) {
                     // TODO: Invalid login

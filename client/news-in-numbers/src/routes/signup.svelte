@@ -10,7 +10,7 @@
     let password;
 
     function login() {
-        fetch(`http://localhost:4000/createUser/${email}/${password}`)
+        fetch(`http://localhost:4000/createUser/${email}/${password}`, { credentials: "include" })
             .then(data => {
                 if (!data) {
                     // TODO: Invalid login
@@ -29,5 +29,5 @@
         <label for="password" class="mt-5 font-bold">Password</label>
         <input type="text" id="password" bind:value={password} class="border"/>
     </form>
-    <button type="submit" form="login-form" value="Login" class="inline-block text-sm px-4 py-2 leading-none border rounded text-black border-black hover:border-transparent hover:text-white hover:bg-black mt-5">Login</button>
+    <button type="submit" form="login-form" value="Login" class="inline-block text-sm px-4 py-2 leading-none border rounded text-black border-black hover:border-transparent hover:text-white hover:bg-black mt-5">Sign Up</button>
 </div>

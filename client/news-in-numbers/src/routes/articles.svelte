@@ -1,6 +1,5 @@
 <script>
     import { onMount } from "svelte";
-    import { apiData } from '../store.js';
     let articles = [];
     onMount(async () => {
         fetch("http://localhost:4000/articles/3")
