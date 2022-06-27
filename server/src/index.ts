@@ -1,6 +1,8 @@
 import { getAnalytics } from "firebase/analytics";
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
+import aesjs from "aes-js";
 import { initializeApp, applicationDefault, cert } from "firebase-admin/app";
 import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
 import argon2 from "argon2";
@@ -14,6 +16,8 @@ const firebaseConfig = {
   appId: "1:928273223508:web:fd1135f068b4aac84282c1",
   measurementId: "G-6GDSXPS4EW"
 };
+
+const aesKey = [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 ];
 
 
 async function main() {
@@ -29,7 +33,10 @@ async function main() {
 
     // Express
     const expressApp = express();
-    expressApp.use(cors());
+    expressApp.use(cors({
+            origin: "http://localhost:3000"
+    }));
+    expressApp.use(cookieParser());
 
     createEndpoints(expressApp, dbUsers, dbArticles);
 
@@ -63,8 +70,18 @@ export function createEndpoints(app: express.Application, dbUsers: any, dbArticl
         }
         const user = dbRes.docs[0];
         const passCorrect = await argon2.verify(user.data().password, req.params.password);
+
+        // Encrypt user id
+        const userIdBytes = aesjs.utils.utf8.toBytes(user.id);
+        let aesCtr = new aesjs.ModeOfOperation.ctr(aesKey, new aesjs.Counter(5));
+        const encryptedId = aesCtr.encrypt(userIdBytes);
+        const encryptedIdHex = aesjs.utils.hex.fromBytes(encryptedId);
+
         if (passCorrect) {
-            return res.send(user.id);
+            return res.writeHead(200, {
+                "Set-Cookie": `userId=${encryptedIdHex}; HttpOnly`,
+                "Access-Control-Allow-Credentials": "true"
+            }).send();
         }
         return res.send(403);
     });
@@ -90,7 +107,16 @@ export function createEndpoints(app: express.Application, dbUsers: any, dbArticl
         const dbRes = await dbUsers.add(user, () => {
             return res.send(500);
         });
-        return res.send(dbRes.id);
+        
+        // Encrypt user id
+        const userIdBytes = aesjs.utils.utf8.toBytes(dbRes.id);
+        let aesCtr = new aesjs.ModeOfOperation.ctr(aesKey, new aesjs.Counter(5));
+        const encryptedId = aesCtr.encrypt(userIdBytes);
+        const encryptedIdHex = aesjs.utils.hex.fromBytes(encryptedId);
+        return res.writeHead(200, {
+            "Set-Cookie": `userId=${encryptedIdHex}; HttpOnly`,
+            "Access-Control-Allow-Credentials": "true"
+        }).send();
     });
 
     app.get("/deleteUser/:id", async (req: Request, res: Response) => {

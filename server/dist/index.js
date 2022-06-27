@@ -6,6 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createEndpoints = void 0;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
+const cookie_parser_1 = __importDefault(require("cookie-parser"));
+const aes_js_1 = __importDefault(require("aes-js"));
 const app_1 = require("firebase-admin/app");
 const firestore_1 = require("firebase-admin/firestore");
 const argon2_1 = __importDefault(require("argon2"));
@@ -18,6 +20,7 @@ const firebaseConfig = {
     appId: "1:928273223508:web:fd1135f068b4aac84282c1",
     measurementId: "G-6GDSXPS4EW"
 };
+const aesKey = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 async function main() {
     if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
         return;
@@ -28,7 +31,10 @@ async function main() {
     const dbUsers = await db.collection("users");
     const dbArticles = await db.collection("articles");
     const expressApp = (0, express_1.default)();
-    expressApp.use((0, cors_1.default)());
+    expressApp.use((0, cors_1.default)({
+        origin: "http://localhost:3000"
+    }));
+    expressApp.use((0, cookie_parser_1.default)());
     createEndpoints(expressApp, dbUsers, dbArticles);
     expressApp.listen("4000", () => console.log(`Example app listening on port 4000!`));
 }
@@ -54,8 +60,15 @@ function createEndpoints(app, dbUsers, dbArticles) {
         }
         const user = dbRes.docs[0];
         const passCorrect = await argon2_1.default.verify(user.data().password, req.params.password);
+        const userIdBytes = aes_js_1.default.utils.utf8.toBytes(user.id);
+        let aesCtr = new aes_js_1.default.ModeOfOperation.ctr(aesKey, new aes_js_1.default.Counter(5));
+        const encryptedId = aesCtr.encrypt(userIdBytes);
+        const encryptedIdHex = aes_js_1.default.utils.hex.fromBytes(encryptedId);
         if (passCorrect) {
-            return res.send(user.id);
+            return res.writeHead(200, {
+                "Set-Cookie": `userId=${encryptedIdHex}; HttpOnly`,
+                "Access-Control-Allow-Credentials": "true"
+            }).send();
         }
         return res.send(403);
     });
@@ -78,7 +91,14 @@ function createEndpoints(app, dbUsers, dbArticles) {
         const dbRes = await dbUsers.add(user, () => {
             return res.send(500);
         });
-        return res.send(dbRes.id);
+        const userIdBytes = aes_js_1.default.utils.utf8.toBytes(dbRes.id);
+        let aesCtr = new aes_js_1.default.ModeOfOperation.ctr(aesKey, new aes_js_1.default.Counter(5));
+        const encryptedId = aesCtr.encrypt(userIdBytes);
+        const encryptedIdHex = aes_js_1.default.utils.hex.fromBytes(encryptedId);
+        return res.writeHead(200, {
+            "Set-Cookie": `userId=${encryptedIdHex}; HttpOnly`,
+            "Access-Control-Allow-Credentials": "true"
+        }).send();
     });
     app.get("/deleteUser/:id", async (req, res) => {
         if (!req.params.id) {
