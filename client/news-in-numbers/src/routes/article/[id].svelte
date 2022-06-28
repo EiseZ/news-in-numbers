@@ -10,18 +10,27 @@
 
 <script>
     import { onMount } from "svelte";
+    import { goto } from "$app/navigation";
     let article;
     let articleFound = false;
     export let articleId;
     onMount(async () => {
         fetch(`http://localhost:4000/article/${articleId}`, { credentials: "include" })
-        .then(response => response.json())
-        .then(data => {
-            if (data) {
-                articleFound = true;
+        .then(response => {
+            console.log(response);
+            if (response.status == 401 || response.status == 403) {
+                goto("/login");
+            } else if (response.status == 402) {
+                goto("/pay")
             }
-            console.log(data.title);
-            article = data;
+            response.json()
+            .then(data => {
+                if (data) {
+                    articleFound = true;
+                }
+                console.log(data.title);
+                article = data;
+            })
         }).catch(error => {
             console.log(error);
             return [];
