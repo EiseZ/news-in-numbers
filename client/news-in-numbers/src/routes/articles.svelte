@@ -29,7 +29,8 @@
     let navbarPages = ["home", "articles", "contact"];
     let navbarHrefs = ["home", "articles", "contact"];
 </script>
+
 <NavBar name="News In Numbers" elements={navbarPages} hrefElements={navbarHrefs} />
 {#each articles as article}
-    <Article imgSrc={article.imgSrc} title={article.title} text={article.content} />
+    <Article imgSrc={article.imgSrc} title={article.title} content={article.content} />
 {/each}

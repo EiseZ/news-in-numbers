@@ -46,7 +46,7 @@
 
 <NavBar name="News In Numbers" elements={navbarPages} hrefElements={navbarHrefs} />
 {#if articleFound}
-    <Article imgSrc={""} title={article.title} text={article.content} tags={article.tags} />
+    <Article imgSrc={""} title={article.title} content={article.content} tags={article.tags} />
 {:else}
     <!--TODO: Article not found-->
 {/if}

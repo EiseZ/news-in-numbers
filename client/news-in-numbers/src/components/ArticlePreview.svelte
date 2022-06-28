@@ -8,7 +8,7 @@
     }
 </script>
 
-<div class="m-auto mt-5 p-5 lg:w-2/5">
+<div class="m-auto mt-5 p-5 lg:w-2/5 border-black">
     <img src={imgSrc} class="" alt=""/>
     <div class="flex">
         {#each tags as tag}

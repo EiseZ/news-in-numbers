@@ -47,7 +47,7 @@ async function main() {
     }));
     expressApp.use(expressSession({
         secret: "secret",
-        resave: false,
+        resave: true,
         saveUninitialized: true,
         cookie: {
             secure: false,
@@ -222,14 +222,35 @@ export function createEndpoints(app: express.Application, dbUsers: any, dbArticl
             ],
             payment_method_types: ["card"],
             mode: 'subscription',
-            success_url: `${process.env.DOMAIN}/success.html?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${process.env.DOMAIN}/cancel.html`,
+            success_url: `${process.env.DOMAIN}/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${process.env.DOMAIN}/cancel`,
         });
 
         if (!session.url) {
             return res.send(500);
         }
-        return res.redirect(session.url);
+        return res.send({ url: session.url });
+    });
+
+    app.post("/payment-successfull/:paymentId", async (req: Request, res: Response) => {
+        const session = await stripe.checkout.sessions.retrieve(req.params.paymentId);
+        if (session.payment_status === "paid") {
+            // Change user to payed user
+            console.log(req.session.userId)
+            if (!req.session.userId) {
+                return res.send(401);
+            }
+            const userDoc = await dbUsers.doc(req.session.userId);
+            const dbRes = await userDoc.get({}, () => {
+                return res.send(500);
+            });
+            if (!dbRes.exists) {
+                return res.send(403);
+            }
+            await userDoc.update({ payed: true }).catch(() => { return res.send(500) });
+            return res.send(200);
+        }
+        return res.send(402);
     });
 }
 
