@@ -4,6 +4,16 @@ module.exports = {
   theme: {
       fontFamily: {
         sans: ["Libre Franklin", "sans-serif"]
+      },
+      extend: {
+        keyframes: {
+          up: {
+            "100%": { transform: "translateY(-5px)" }
+          },
+          down: {
+            "0%": { transform: "translateY(-5px)" }
+          }
+        }
       }
   },
   plugins: [
