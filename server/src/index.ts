@@ -2,10 +2,13 @@ import { getAnalytics } from "firebase/analytics";
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import expressSession from "express-session";
-import aesjs from "aes-js";
+import "dotenv/config";
 import { initializeApp, applicationDefault, cert } from "firebase-admin/app";
 import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
 import argon2 from "argon2";
+import stripeCore from "stripe";
+
+const stripe = new stripeCore("sk_test_51LFM0qGCmjW4WxM6nK21clE5HLrTGyfsEZZQPwG0x0EZ5EMKW9ofE76AxEjzn3A08mQhO1mzEH3e4s2LrnvM4YNm00MOggx6VV", { apiVersion: "2020-08-27" });
 
 const firebaseConfig = {
   apiKey: "AIzaSyD7MT1eZnCD35EOQEQkV_nQPteBreJBBug",
@@ -205,6 +208,28 @@ export function createEndpoints(app: express.Application, dbUsers: any, dbArticl
             return res.send(500);
         });
         return res.send(200);
+    });
+
+    app.post("/create-checkout-session", async (_: Request, res: Response) => {
+        const session = await stripe.checkout.sessions.create({
+            billing_address_collection: 'auto',
+            line_items: [
+            {
+                price: "price_1LFM7cGCmjW4WxM6QknDdl19",
+                // For metered billing, do not pass quantity
+                quantity: 1,
+            },
+            ],
+            payment_method_types: ["card"],
+            mode: 'subscription',
+            success_url: `${process.env.DOMAIN}/success.html?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${process.env.DOMAIN}/cancel.html`,
+        });
+
+        if (!session.url) {
+            return res.send(500);
+        }
+        return res.redirect(session.url);
     });
 }
 

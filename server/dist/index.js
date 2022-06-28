@@ -7,9 +7,12 @@ exports.createEndpoints = void 0;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const express_session_1 = __importDefault(require("express-session"));
+require("dotenv/config");
 const app_1 = require("firebase-admin/app");
 const firestore_1 = require("firebase-admin/firestore");
 const argon2_1 = __importDefault(require("argon2"));
+const stripe_1 = __importDefault(require("stripe"));
+const stripe = new stripe_1.default("sk_test_51LFM0qGCmjW4WxM6nK21clE5HLrTGyfsEZZQPwG0x0EZ5EMKW9ofE76AxEjzn3A08mQhO1mzEH3e4s2LrnvM4YNm00MOggx6VV", { apiVersion: "2020-08-27" });
 const firebaseConfig = {
     apiKey: "AIzaSyD7MT1eZnCD35EOQEQkV_nQPteBreJBBug",
     authDomain: "news-in-numbers-7fc19.firebaseapp.com",
@@ -172,6 +175,25 @@ function createEndpoints(app, dbUsers, dbArticles) {
             return res.send(500);
         });
         return res.send(200);
+    });
+    app.post("/create-checkout-session", async (_, res) => {
+        const session = await stripe.checkout.sessions.create({
+            billing_address_collection: 'auto',
+            line_items: [
+                {
+                    price: "price_1LFM7cGCmjW4WxM6QknDdl19",
+                    quantity: 1,
+                },
+            ],
+            payment_method_types: ["card"],
+            mode: 'subscription',
+            success_url: `${process.env.DOMAIN}/success.html?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${process.env.DOMAIN}/cancel.html`,
+        });
+        if (!session.url) {
+            return res.send(500);
+        }
+        return res.redirect(session.url);
     });
 }
 exports.createEndpoints = createEndpoints;
