@@ -129,10 +129,12 @@ function createEndpoints(app, dbUsers, dbArticles) {
             return res.send(404);
         }
         let articles = [];
+        let articleIds = [];
         dbRes.forEach((article) => {
             articles.push(article.data());
+            articleIds.push(article.id);
         });
-        return res.send(articles);
+        return res.send({ articles: articles, articleIds: articleIds });
     });
     app.get("/article/:id", async (req, res) => {
         if (!req.session.userId) {

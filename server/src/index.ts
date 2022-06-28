@@ -155,11 +155,13 @@ export function createEndpoints(app: express.Application, dbUsers: any, dbArticl
             return res.send(404);
         }
         let articles: {}[] = [];
+        let articleIds: {}[] = [];
         // TODO: Remove any
         dbRes.forEach((article: any) => {
             articles.push(article.data());
+            articleIds.push(article.id);
         });
-        return res.send(articles);
+        return res.send({ articles: articles, articleIds: articleIds });
     });
 
     app.get("/article/:id", async (req: Request, res: Response) => {

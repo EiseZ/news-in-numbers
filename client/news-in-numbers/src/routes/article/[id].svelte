@@ -42,9 +42,14 @@
 
     let navbarPages = ["home", "articles", "contact"];
     let navbarHrefs = ["home", "articles", "contact"];
+
+    function onBackButtonClick() {
+        goto("/articles");
+    }
 </script>
 
 <NavBar name="News In Numbers" elements={navbarPages} hrefElements={navbarHrefs} />
+<button on:click={onBackButtonClick} class="text-gray-400 text-6xl fixed top-20 left-5">&#8249;</button>
 {#if articleFound}
     <Article imgSrc={""} title={article.title} content={article.content} tags={article.tags} />
 {:else}

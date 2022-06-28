@@ -11,7 +11,7 @@
   <div class="w-full block flex-grow ml-5 sm:flex sm:items-center sm:w-auto">
         <div class="text-sm sm:flex-grow">
             {#each elements as element, i}
-            <a href={hrefElements[i]} class="block text-base font-semibold mt-4 sm:inline-block sm:mt-0 text-gray-300 hover:text-white mr-4">
+            <a href={"/" + hrefElements[i]} class="block text-base font-semibold mt-4 sm:inline-block sm:mt-0 text-gray-300 hover:text-white mr-4">
                 {element}
             </a>
             {/each}
